@@ -17,7 +17,7 @@ app.use("/api/auth", authRoute);
 app.use('/api/post', postRoutes); // API routes for posts
 
 
-const PORT = 5000;
+const PORT = 5001;
 
 connectDb().then(() => {
     
