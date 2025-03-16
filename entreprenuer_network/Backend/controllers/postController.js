@@ -45,6 +45,8 @@ const getPostsByUser = async (req, res) => {
       return res.status(404).json({ message: 'No posts found for this user' });
     }
 
+    console.log("user posts")
+
     res.status(200).json({ posts });
   } catch (error) {
     console.error('Database Error:', error);
@@ -61,6 +63,8 @@ const getPosts = async (req, res) => {
     if (posts.length === 0) {
       return res.status(404).json({ message: 'No posts found' });
     }
+
+    console.log("all posts");
 
     res.status(200).json({ posts });
   } catch (error) {
