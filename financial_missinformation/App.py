@@ -6,12 +6,17 @@ from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential
 from keras.layers import LSTM, Dense
 import xgboost as xgb
+import yfinance as yf
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from datetime import date
 from datetime import datetime, timezone
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Set OpenAI API Key (replace with your actual OpenAI API key)
-openai.api_key = 'openAI API key'
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Streamlit UI setup
 st.title("Financial Misinformation Detector")
@@ -72,71 +77,89 @@ if st.button("Check Accuracy"):
 
 #Initial data requirement for Stock Market Prediction
 st.title("Stock Market Predictor")
-st.write("Provide the supporting data.")
-input_ticker = st.text_area("Enter the Stock market name to predict it's value: ")
+st.write("Enter a stock ticker symbol to predict its closing price.")
 
-#Stock Prediction function
-def stocks(stockName):
-    ticker = stockName
+# User input
+input_ticker = st.text_input("Enter Stock Ticker (e.g., AAPL, TSLA, GOOGL):")
+
+# Stock Prediction function
+def predict_stock_price(ticker):
+    # Fetch stock data
     stock = yf.Ticker(ticker)
-    first_trade_epoch = stock.info.get("firstTradeDateEpoch", None)
+    
+    # Get first available date
+    first_trade_epoch = stock.info.get("firstTradeDateEpochUtc", None)
     start_date = "2010-01-01"
     if first_trade_epoch:
         start_date = datetime.fromtimestamp(first_trade_epoch, tz=timezone.utc).strftime("%Y-%m-%d")
     end_date = date.today()
+
+    # Load stock price data
     stock_data = yf.download(ticker, start=start_date, end=end_date)
-
+    if stock_data.empty:
+        return None  # No data available
+    
+    # Use 'Close' price for prediction
+    close_prices = stock_data["Close"].values.reshape(-1, 1)
+    
+    # Normalize prices
     scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_close = scaler.fit_transform(stock_data["Close"].values.reshape(-1, 1))
+    scaled_close = scaler.fit_transform(close_prices)
 
-    def create_dataset(data, lag=1):
+    # Create dataset
+    def create_dataset(data, lag=5):
         X, y = [], []
-        for i in range(len(data) - lag - 1):
-            X.append(data[i:(i + lag), 0])
+        for i in range(len(data) - lag):
+            X.append(data[i:i + lag, 0])
             y.append(data[i + lag, 0])
         return np.array(X), np.array(y)
     
     lag = 5
     X, y = create_dataset(scaled_close, lag)
 
+    # Reshape for LSTM
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
 
+    # Train-test split
     train_size = int(len(X) * 0.8)
     X_train, X_test = X[:train_size], X[train_size:]
     y_train, y_test = y[:train_size], y[train_size:]
 
-    model = Sequential()
-    model.add(LSTM(units=100, return_sequences=True, input_shape=(X_train.shape[1], 1)))
-    model.add(Dense(1))
-    model.compile(loss='mean_squared_error', optimizer='adam')
+    # Build LSTM model
+    model = Sequential([
+        LSTM(units=50, return_sequences=True, input_shape=(lag, 1)),
+        LSTM(units=50, return_sequences=False),
+        Dense(1)
+    ])
+    model.compile(loss="mean_squared_error", optimizer="adam")
 
-    model.fit(X_train, y_train, epochs=100, batch_size=32, verbose=2)
+    # Train the model (reduce epochs for speed)
+    model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
 
+    # Predict using LSTM
     y_pred_lstm = model.predict(X_test)
-    y_pred_lstm_2d = y_pred_lstm[:, -1, :]
 
-    xgb_model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100)
-    xgb_model.fit(y_pred_lstm_2d, y_test)
+    # Train XGBoost using actual prices (not LSTM output)
+    xgb_model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=50)
+    xgb_model.fit(X_train.reshape(X_train.shape[0], lag), y_train)
 
-    y_pred_boosted = xgb_model.predict(y_pred_lstm_2d)
+    # Predict using XGBoost
+    y_pred_xgb = xgb_model.predict(X_test.reshape(X_test.shape[0], lag))
 
-    y_pred_boosted_actual = scaler.inverse_transform(y_pred_boosted.reshape(-1, 1))
+    # Inverse transform to get actual stock prices
+    predicted_price = scaler.inverse_transform([[y_pred_xgb[-1]]])[0][0]
 
-    predicted_closing_price = y_pred_boosted_actual[-1][0]
-    return predicted_closing_price
+    return predicted_price
 
-predictedValue = 0
-
-# Check the news when the button is pressed
-if st.button("Check Stock Market Prediction"):
+# Prediction button
+if st.button("Predict Stock Price"):
     if input_ticker:
-        # Query for Stock Market Prediction
-        predictedValue = stocks(input_ticker)
-
-        if predictedValue!=0:
-            st.write("The stock will close at the following predicted value: ")
-            st.success(predictedValue)
-            st.warning("The product is in testing phase, please do your research for accurate results and no losses.")
-
+        predicted_value = predict_stock_price(input_ticker.upper())
+        
+        if predicted_value:
+            st.success(f"Predicted Closing Price: ${predicted_value:.2f}")
+            st.warning("⚠️ This is an experimental prediction. Do your own research before investing.")
+        else:
+            st.error("Invalid stock ticker or no data available. Please try another stock.")
     else:
-        st.warning("Please enter the correct Stock Name.")        
+        st.warning("Please enter a valid stock ticker.")

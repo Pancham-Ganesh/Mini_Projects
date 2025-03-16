@@ -1,0 +1,35 @@
+# Ignore virtual environment
+venv/
+# .env
+# *.env
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore logs and cache
+logs/
+*.log
+
+# Ignore Jupyter Notebook checkpoints (if used)
+.ipynb_checkpoints/
+
+# Ignore large data files (if applicable)
+*.csv
+*.xlsx
+*.json
+*.h5  # TensorFlow/Keras model files
+*.pkl  # Pickle files
+
+# Ignore Streamlit cache
+.streamlit/
+
+# Ignore OS/system files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE settings (VS Code, PyCharm, etc.)
+.vscode/
+.idea/
