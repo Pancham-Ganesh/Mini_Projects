@@ -26,98 +26,88 @@ os.environ["THEANO_FLAGS"] = "device=cuda, assert_no_cpu_op=True"
 
 class Application:
 
-    def __init__(self):
+    def _init_(self):
         self.vs = cv2.VideoCapture(0)
         self.current_image = None
         self.model = load_model('cnn8grps_rad1_model.h5')
-        self.speak_engine=pyttsx3.init()
-        self.speak_engine.setProperty("rate",100)
-        voices=self.speak_engine.getProperty("voices")
-        self.speak_engine.setProperty("voice",voices[0].id)
+        self.speak_engine = pyttsx3.init()
+        self.speak_engine.setProperty("rate", 100)
+        voices = self.speak_engine.getProperty("voices")
+        self.speak_engine.setProperty("voice", voices[0].id)
 
         self.ct = {}
         self.ct['blank'] = 0
         self.blank_flag = 0
-        self.space_flag=False
-        self.next_flag=True
-        self.prev_char=""
-        self.count=-1
-        self.ten_prev_char=[]
-        for i in range(10):
-            self.ten_prev_char.append(" ")
-
+        self.space_flag = False
+        self.next_flag = True
+        self.prev_char = ""
+        self.count = -1
+        self.ten_prev_char = [" " for _ in range(10)]
 
         for i in ascii_uppercase:
             self.ct[i] = 0
         print("Loaded model from disk")
 
-
         self.root = tk.Tk()
         self.root.title("Sign Language To Text Conversion")
         self.root.protocol('WM_DELETE_WINDOW', self.destructor)
-        self.root.geometry("1300x700")
+        self.root.geometry("800x600")  # Adjusted window size
 
         self.panel = tk.Label(self.root)
-        self.panel.place(x=100, y=3, width=480, height=640)
+        self.panel.place(x=50, y=10, width=320, height=240)  # Adjusted size and position
 
         self.panel2 = tk.Label(self.root)  # initialize image panel
-        self.panel2.place(x=700, y=115, width=400, height=400)
+        self.panel2.place(x=400, y=10, width=320, height=240)  # Adjusted size and position
 
         self.T = tk.Label(self.root)
-        self.T.place(x=60, y=5)
-        self.T.config(text="Sign Language To Text Conversion", font=("Courier", 30, "bold"))
+        self.T.place(x=50, y=260)
+        self.T.config(text="Sign Language To Text Conversion", font=("Courier", 20, "bold"))  # Adjusted font size
 
         self.panel3 = tk.Label(self.root)  # Current Symbol
-        self.panel3.place(x=280, y=585)
+        self.panel3.place(x=50, y=300)
 
         self.T1 = tk.Label(self.root)
-        self.T1.place(x=10, y=580)
-        self.T1.config(text="Character :", font=("Courier", 30, "bold"))
+        self.T1.place(x=50, y=330)
+        self.T1.config(text="Character :", font=("Courier", 16, "bold"))  # Adjusted font size
 
         self.panel5 = tk.Label(self.root)  # Sentence
-        self.panel5.place(x=260, y=632)
+        self.panel5.place(x=50, y=360)
 
         self.T3 = tk.Label(self.root)
-        self.T3.place(x=10, y=632)
-        self.T3.config(text="Sentence :", font=("Courier", 30, "bold"))
+        self.T3.place(x=50, y=390)
+        self.T3.config(text="Sentence :", font=("Courier", 16, "bold"))  # Adjusted font size
 
         self.T4 = tk.Label(self.root)
-        self.T4.place(x=10, y=700)
-        self.T4.config(text="Suggestions :", fg="red", font=("Courier", 30, "bold"))
+        self.T4.place(x=50, y=420)
+        self.T4.config(text="Suggestions :", fg="red", font=("Courier", 16, "bold"))  # Adjusted font size
 
-
-        self.b1=tk.Button(self.root)
-        self.b1.place(x=390,y=700)
+        self.b1 = tk.Button(self.root)
+        self.b1.place(x=50, y=450, width=150, height=30)  # Adjusted size and position
 
         self.b2 = tk.Button(self.root)
-        self.b2.place(x=590, y=700)
+        self.b2.place(x=210, y=450, width=150, height=30)  # Adjusted size and position
 
         self.b3 = tk.Button(self.root)
-        self.b3.place(x=790, y=700)
+        self.b3.place(x=370, y=450, width=150, height=30)  # Adjusted size and position
 
         self.b4 = tk.Button(self.root)
-        self.b4.place(x=990, y=700)
+        self.b4.place(x=530, y=450, width=150, height=30)  # Adjusted size and position
 
         self.speak = tk.Button(self.root)
-        self.speak.place(x=1305, y=630)
-        self.speak.config(text="Speak", font=("Courier", 20), wraplength=100, command=self.speak_fun)
+        self.speak.place(x=50, y=500, width=100, height=30)  # Adjusted size and position
+        self.speak.config(text="Speak", font=("Courier", 12), command=self.speak_fun)  # Adjusted font size
 
         self.clear = tk.Button(self.root)
-        self.clear.place(x=1205, y=630)
-        self.clear.config(text="Clear", font=("Courier", 20), wraplength=100, command=self.clear_fun)
-
-
-
-
+        self.clear.place(x=160, y=500, width=100, height=30)  # Adjusted size and position
+        self.clear.config(text="Clear", font=("Courier", 12), command=self.clear_fun)  # Adjusted font size
 
         self.str = " "
-        self.ccc=0
+        self.ccc = 0
         self.word = " "
         self.current_symbol = "C"
         self.photo = "Empty"
 
-
-        self.word1=" "
+        self.word1 = " "
         self.word2 = " "
         self.word3 = " "
         self.word4 = " "
@@ -195,20 +185,20 @@ class Application:
                             self.panel2.imgtk = imgtk
                             self.panel2.config(image=imgtk)
 
-                            self.panel3.config(text=self.current_symbol, font=("Courier", 30))
+                            self.panel3.config(text=self.current_symbol, font=("Courier", 20))
 
                             #self.panel4.config(text=self.word, font=("Courier", 30))
 
 
 
-                            self.b1.config(text=self.word1, font=("Courier", 20), wraplength=825, command=self.action1)
-                            self.b2.config(text=self.word2, font=("Courier", 20), wraplength=825,  command=self.action2)
-                            self.b3.config(text=self.word3, font=("Courier", 20), wraplength=825,  command=self.action3)
-                            self.b4.config(text=self.word4, font=("Courier", 20), wraplength=825,  command=self.action4)
+                            self.b1.config(text=self.word1, font=("Courier", 12), wraplength=150, command=self.action1)
+                            self.b2.config(text=self.word2, font=("Courier", 12), wraplength=150,  command=self.action2)
+                            self.b3.config(text=self.word3, font=("Courier", 12), wraplength=150,  command=self.action3)
+                            self.b4.config(text=self.word4, font=("Courier", 12), wraplength=150,  command=self.action4)
 
-                self.panel5.config(text=self.str, font=("Courier", 30), wraplength=1025)
+                self.panel5.config(text=self.str, font=("Courier", 16), wraplength=700)
         except Exception:
-            print(Exception.__traceback__)
+            print(Exception._traceback_)
             hands = hd.findHands(cv2image, draw=False, flipType=True)
             cv2image_copy=np.array(cv2image)
             cv2image = cv2.cvtColor(cv2image, cv2.COLOR_BGR2RGB)
@@ -275,18 +265,18 @@ class Application:
                     self.panel2.imgtk = imgtk
                     self.panel2.config(image=imgtk)
 
-                    self.panel3.config(text=self.current_symbol, font=("Courier", 30))
+                    self.panel3.config(text=self.current_symbol, font=("Courier", 20))
 
                     #self.panel4.config(text=self.word, font=("Courier", 30))
 
 
 
-                    self.b1.config(text=self.word1, font=("Courier", 20), wraplength=825, command=self.action1)
-                    self.b2.config(text=self.word2, font=("Courier", 20), wraplength=825,  command=self.action2)
-                    self.b3.config(text=self.word3, font=("Courier", 20), wraplength=825,  command=self.action3)
-                    self.b4.config(text=self.word4, font=("Courier", 20), wraplength=825,  command=self.action4)
+                    self.b1.config(text=self.word1, font=("Courier", 12), wraplength=150, command=self.action1)
+                    self.b2.config(text=self.word2, font=("Courier", 12), wraplength=150,  command=self.action2)
+                    self.b3.config(text=self.word3, font=("Courier", 12), wraplength=150,  command=self.action3)
+                    self.b4.config(text=self.word4, font=("Courier", 12), wraplength=150,  command=self.action4)
 
-            self.panel5.config(text=self.str, font=("Courier", 30), wraplength=1025)
+            self.panel5.config(text=self.str, font=("Courier", 16), wraplength=700)
         except Exception:
             print("==", traceback.format_exc())
         finally:
@@ -565,7 +555,7 @@ class Application:
 
         # con for [d][pqz]
         fg = 19
-        # print("_________________ch1=",ch1," ch2=",ch2)
+        # print("_ch1=",ch1," ch2=",ch2)
         l = [[5, 0], [3, 4], [3, 0], [3, 1], [3, 5], [5, 5], [5, 4], [5, 1], [7, 6]]
         pl = [ch1, ch2]
         if pl in l:
@@ -794,5 +784,4 @@ class Application:
 
 
 print("Starting Application...")
-
 (Application()).root.mainloop()
