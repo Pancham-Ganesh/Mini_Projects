@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Section</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #4b4949;
+            color: #fff;
+        }
+
+        header {
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+            padding: 1em 0;
+        }
+
+        nav {
+            background-color: #000;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px;
+            margin: 0 10px;
+            display: inline-block;
+            background: transparent;
+        }
+
+        .logout-button {
+            background-color: #ccc;
+            color: #333;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            background-color: #999;
+        }
+
+        main {
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        h2{
+            text-align: center;
+            font-weight: bolder;
+
+        }
+
+        p{
+            
+            text-shadow: #000000;
+            text-align: center;
+            font-weight: bold;
+            font-size: large;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <a href="studentsection.html">Home</a>
+        <a href="student_menu_voting.html">Menu Voting</a>
+        <a href="student_menu_suggestion.html">Menu Suggestion</a>
+        <a href="student_party_management.html">Performance & Themes Suggestions</a>
+        <a href="student_performance_votes.html">Performance Voting</a>
+        <a href="mainmenu.html">Logout</a>
+       
+    </nav>
+
+    <header>
+        <h1>Welcome Party Management System</h1>
+    </header>
+    <p> <span id="namedisplay"></span> </p> 
+    <p id="highestVotedDisplay"></p>
+    <p id="performanceTypeDisplay"></p>
+</main>
+
+<script>
+    function logout() {
+        window.location.href = "mainmenu.html";
+    }
+
+    fetch('/themesdisplay')
+        .then(response => response.json())
+        .then(themeNames => {
+            const namedisplay = document.getElementById('namedisplay');
+            namedisplay.innerHTML = `Theme: ${themeNames.join(', ')}`;
+        })
+        .catch(error => console.error('Error fetching theme names:', error));
+
+    fetch('/highestVotedSuggestion')
+        .then(response => response.json())
+        .then(data => {
+            const highestVotedDisplay = document.getElementById('highestVotedDisplay');
+            highestVotedDisplay.innerHTML = `Highest Voted Suggestion: ${data.highestVotedSuggestion}`;
+        })
+        .catch(error => console.error('Error fetching highest voted suggestion:', error));
+
+    fetch('/highestVotedPerformance')
+        .then(response => response.json())
+        .then(data => {
+            const performanceTypeDisplay = document.getElementById('performanceTypeDisplay');
+            performanceTypeDisplay.innerHTML = `Highest Voted Performance Type: ${data.highestVotedPerformanceType}`;
+        })
+        .catch(error => console.error('Error fetching highest voted performance type:', error));
+</script>

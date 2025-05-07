@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome Party Menu Voting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: url('p10.jpg') center center fixed;
+            background-size: cover;
+        }
+
+        header, nav {
+            background-color: rgba(51, 51, 51, 0.7); /* Set background color with transparency */
+            color: #fff;
+            text-align: center;
+            padding: 1em 0;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px;
+            margin: 0 10px;
+            display: inline-block;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: transparent; /* Make the background transparent */
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff; /* Set text color to white */
+            font-weight: bold; /* Make the text bold */
+        }
+
+        textarea,
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            background: transparent; /* Make input fields transparent */
+            color: #fff; /* Set text color to white */
+            border: 1px solid #fff; /* Add white border to input fields */
+        }
+
+        button {
+ --color: #242226;
+ font-family: inherit;
+ display: inline-block;
+ width: 8em;
+ height: 2.6em;
+ line-height: 2.5em;
+ margin: 20px;
+ position: relative;
+ overflow: hidden;
+ border: 2px solid var(--color);
+ transition: color .5s;
+ z-index: 1;
+ font-size: 17px;
+ border-radius: 6px;
+ font-weight: 500;
+ color: var(--color);
+}
+
+button:before {
+ content: "";
+ position: absolute;
+ z-index: -1;
+ background: var(--color);
+ height: 150px;
+ width: 200px;
+ border-radius: 50%;
+}
+
+button:hover {
+ color: #fff;
+}
+
+button:before {
+ top: 100%;
+ left: 100%;
+ transition: all .7s;
+}
+
+button:hover:before {
+ top: -30px;
+ left: -30px;
+}
+
+button:active:before {
+ background: #7d7492;
+ 
+}
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <a href="studentsection.html">Home</a>
+        <a href="student_menu_voting.html">Menu Voting</a>
+        <a href="student_menu_suggestion.html">Menu Suggestion</a>
+        <a href="student_party_management.html">Performance & Themes Suggestions</a>
+        <a href="student_performance_votes.html">Performance Voting</a>
+        <a href="mainmenu.html">Logout</a>
+       
+    </nav>
+
+    <header>
+        <h1>Welcome Party Menu Voting</h1>
+    </header>
+
+    <form id="votingForm">
+        <button type="submit">Submit Vote</button>
+    </form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const votingForm = document.getElementById('votingForm');
+        fetch('/suggestedMenus')
+            .then(response => response.json())
+            .then(suggestedMenus => {
+                suggestedMenus.forEach(menu => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `
+                        <input type="radio" name="menuOption" value="${menu.id}">
+                        ${menu.suggestion_text}
+                    `;
+                    votingForm.appendChild(label);
+                });
+            });
+    });
+
+    document.getElementById('votingForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const selectedOption = document.querySelector('input[name="menuOption"]:checked');
+
+        if (selectedOption) {
+            const menuId = selectedOption.value;
+
+            fetch('/vote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ menuId }),
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('Vote submitted successfully!');
+                    } else {
+                        alert('Failed to submit vote.');
+                    }
+                });
+        } else {
+            alert('Please select a menu option before submitting.');
+        }
+    });
+</script>
+
+</body>
+
+</html>

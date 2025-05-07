@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Registration - Welcome Party Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: url('p3.jpg') center center fixed;
+            background-size: cover;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1em 0;
+        }
+
+        .registration-container {
+            width: 300px;
+            margin: 100px auto;
+            background-color: transparent;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            --color: #26232a;
+            font-family: inherit;
+            display: inline-block;
+            width: 100%;
+            height: 2.6em;
+            line-height: 2.5em;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--color);
+            transition: color .5s;
+            z-index: 1;
+            font-size: 17px;
+            border-radius: 6px;
+            font-weight: 500;
+            color: var(--color);
+        }
+
+        button:before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            background: var(--color);
+            height: 150px;
+            width: 200px;
+            border-radius: 50%;
+        }
+
+        button:hover {
+            color: #fff;
+        }
+
+        button:before {
+            top: 100%;
+            left: 100%;
+            transition: all .7s;
+        }
+
+        button:hover:before {
+            top: -30px;
+            left: -30px;
+        }
+
+        button:active:before {
+            background: #2d2a32;
+            transition: background 0s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Welcome Party Management System</h1>
+    </header>
+
+    <div class="registration-container">
+        <h2>Teacher Registration</h2>
+        <form action="/teacherregisteration" method="post">
+            <label for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" required>
+
+            <label for="last_name">Last Name:</label>
+            <input type="text" id="last_name" name="last_name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="complimentary">Complimentary Registration:</label>
+            <input type="checkbox" id="complimentary" name="complimentary" checked>
+
+            <label for="family_members">Number of Family Members:</label>
+            <input type="number" id="family_members" name="family_members" value="0" required>
+
+            <button type="submit">Register</button>
+        </form>
+
+        <button onclick="returnToHome()" class="return-button">Return to Home Page</button>
+    </div>
+
+    <script>
+        function returnToHome() {
+            window.location.href = "mainmenu.html"; 
+        }
+    </script>
+
+</body>
+
+</html>

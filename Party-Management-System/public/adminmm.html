@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Welcome Party Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+            background-image: url('dark.jpg');
+            background-size: cover;
+            background-position: center center;
+        }
+
+        header {
+            background-color: #030303;
+            color: #fff;
+            text-align: center;
+            padding: 1em 0;
+        }
+
+        .login-container {
+            width: 300px;
+            margin: 100px auto;
+            background-color: #080808;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            color: #fff; 
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff; 
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            color: #000;
+        }
+
+        button {
+            --color: #560bad;
+            font-family: inherit;
+            display: inline-block;
+            width: 8em;
+            height: 2.6em;
+            line-height: 2.5em;
+            margin: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--color);
+            transition: color .5s;
+            z-index: 1;
+            font-size: 17px;
+            border-radius: 6px;
+            font-weight: 500;
+            color: var(--color);
+        }
+
+        button:before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            background: var(--color);
+            height: 150px;
+            width: 200px;
+            border-radius: 50%;
+        }
+
+        button:hover {
+            color: #fff;
+        }
+
+        button:before {
+            top: 100%;
+            left: 100%;
+            transition: all .7s;
+        }
+
+        button:hover:before {
+            top: -30px;
+            left: -30px;
+        }
+
+        button:active:before {
+            background: #7d7492;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Welcome Party Management System</h1>
+    </header>
+
+    <div class="login-container">
+        <h2>Admin Login</h2>
+        <form id="adminLoginForm" action="/adminlogin" method="post">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <input type="submit" value="Login" class="button">
+        </form>
+
+        <button onclick="returnToHome()" class="return-button">Return to Home Page</button>
+    </div>
+
+    <script>
+        function returnToHome() {
+            window.location.href = "mainmenu.html"; 
+        }
+
+        document.getElementById('adminLoginForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            fetch('/adminlogin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Login successful!'); 
+                    window.location.href = "adminsection.html"; 
+                } else {
+                    alert('Invalid login credentials');
+                }
+            })
+            .catch(error => {
+                console.error('Error during login:', error);
+                alert('Error during login');
+            });
+        });
+    </script>
+
+</body>
+
+</html>
