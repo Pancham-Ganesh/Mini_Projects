@@ -105,9 +105,10 @@ def speech_to_text():
         # Get the audio data from the request
         audio_file = request.files.get('audio')
 
-        if audio_file.content_type not in ["audio/wav", "audio/vnd.wave"]:
+        if audio_file.content_type not in ["audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave"]:
             logging.error(f"Unexpected MIME type: {audio_file.content_type}")
-            return jsonify({"error": "Unsupported audio format"}), 400
+            return jsonify({"error": f"Unsupported audio format: {audio_file.content_type}"}), 400
+
 
         if not audio_file or len(audio_file.read()) == 0:
             logging.error("Received an empty or invalid audio file.")

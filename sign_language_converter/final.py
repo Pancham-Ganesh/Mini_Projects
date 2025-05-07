@@ -11,6 +11,7 @@ import enchant
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
+import openai
 
 ddd = enchant.Dict("en-US")
 hd = HandDetector(maxHands=1)
@@ -20,6 +21,76 @@ offset = 29
 os.environ["THEANO_FLAGS"] = "device=cuda, assert_no_cpu_op=True"
 
 class Application:
+    def gpt_generate_response(self, user_input, conversation_history=[]):
+        messages = [
+        {"role": "system", "content": 
+        "You are a friendly and supportive chatbot. Your goal is to provide warm and understanding responses to users who need emotional support. \
+        Acknowledge their feelings, encourage positivity, and offer helpful insights. If a user is in distress, offer kind words and coping strategies, \
+        but do not mention professional help unless explicitly asked."
+        }
+        ]
+
+        for msg in conversation_history:
+            messages.append({"role": "user", "content": msg["user"]})
+            messages.append({"role": "assistant", "content": msg["bot"]})
+
+        messages.append({"role": "user", "content": user_input})
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=200,
+                temperature=0.6,
+                top_p=0.95
+            )
+            bot_response = response.choices[0].message.content.strip()
+            conversation_history.append({"user": user_input, "bot": bot_response})
+            return bot_response
+
+        except Exception as e:
+            print("Error with OpenAI API:", e)
+            return "I'm here for you. If you're feeling low, it's okay to talk about it. You're not alone."
+        
+    def chat_with_bot(self, use_text_input=True):
+        message = ""
+        if use_text_input:
+            message = self.text_input.get("1.0", tk.END).strip()  # Changed to get Text widget content
+            if not message:
+                return
+            self.text_input.delete("1.0", tk.END)  # Clear the Text widget
+        else:
+            message = self.str.strip()
+            if not message:
+                return
+            self.str = " "
+            self.panel5.config(text=self.str)
+        
+        if message:
+            bot_response = self.gpt_generate_response(message, self.conversation_history)
+            self.display_message("You: " + message, "user")
+            self.display_message("Chatbot: " + bot_response, "bot")
+
+    def display_message(self, message, sender):
+        self.chat_display.config(state=tk.NORMAL)
+        
+        # Remove these lines - tags are now configured in __init__
+        # self.chat_display.tag_config("user", foreground="black")
+        # self.chat_display.tag_config("bot", foreground="blue", lmargin1=20, lmargin2=20)
+        
+        # Insert the message with appropriate tag
+        self.chat_display.insert(tk.END, f"{'You: ' if sender == 'user' else 'Chatbot: '}", "bold")
+        self.chat_display.insert(tk.END, message[len("You: ") if sender == "user" else len("Chatbot: "):] + "\n\n", sender)
+        
+        self.chat_display.config(state=tk.DISABLED)
+        self.chat_display.see(tk.END)  # Auto-scroll to bottom
+
+    def clear_chat_fun(self):
+        self.chat_display.config(state=tk.NORMAL)
+        self.chat_display.delete(1.0, tk.END)
+        self.chat_display.config(state=tk.DISABLED)
+        self.conversation_history = []  # Clear conversation history
+    
     def __init__(self):
         self.vs = cv2.VideoCapture(0)
         self.current_image = None
@@ -28,6 +99,9 @@ class Application:
         self.speak_engine.setProperty("rate", 100)
         voices = self.speak_engine.getProperty("voices")
         self.speak_engine.setProperty("voice", voices[0].id)
+
+        self.client = openai.OpenAI(api_key="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")  # Replace with your actual API key
+        self.conversation_history = []  # To store conversation context
 
         self.ct = {'blank': 0}
         self.blank_flag = 0
@@ -104,6 +178,54 @@ class Application:
 
         self.clear = tk.Button(self.scrollable_frame, text="Clear", font=button_font, wraplength=80, command=self.clear_fun)
         self.clear.grid(row=7, column=1, padx=5, pady=5, sticky="w")
+    
+    # Add chat display area (modified version)
+        self.chat_frame = ttk.Frame(self.scrollable_frame)
+        self.chat_frame.grid(row=8, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
+        
+        self.chat_display = tk.Text(self.chat_frame, height=10, width=60, wrap=tk.WORD, state=tk.DISABLED)
+        self.chat_display.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(self.chat_frame, command=self.chat_display.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.chat_display.config(yscrollcommand=scrollbar.set)
+
+         # Configure tags AFTER creating chat_display
+        self.chat_display.tag_config("bold", font=("Courier", 10, "bold"))
+        self.chat_display.tag_config("user", foreground="black")
+        self.chat_display.tag_config("bot", foreground="blue", lmargin1=20, lmargin2=20)
+        
+        # Add text input frame
+        self.input_frame = ttk.Frame(self.scrollable_frame)
+        self.input_frame.grid(row=9, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+        
+        # Text input field
+        self.text_input = tk.Text(
+            self.input_frame, 
+            height=3,  # 3 lines tall
+            width=60,
+            font=("Courier", 12),
+            wrap=tk.WORD,
+            relief=tk.GROOVE,
+            borderwidth=2
+        )
+        self.text_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.text_input.bind("<Return>", lambda event: self.chat_with_bot())  # Send on Enter
+        
+        # Send button for text input
+        self.text_send = tk.Button(self.input_frame, text="Send", font=button_font, 
+                            command=self.chat_with_bot)
+        self.text_send.pack(side=tk.LEFT)
+        
+        # Modified Send to Chatbot button (now for sign language)
+        self.sign_send = tk.Button(self.scrollable_frame, text="Send Sign", font=button_font, 
+                            command=lambda: self.chat_with_bot(use_text_input=False))
+        self.sign_send.grid(row=10, column=0, padx=5, pady=5, sticky="w")
+        
+        # Clear chat button
+        self.clear_chat = tk.Button(self.scrollable_frame, text="Clear Chat", font=button_font, 
+                            command=self.clear_chat_fun)
+        self.clear_chat.grid(row=10, column=1, padx=5, pady=5, sticky="w")
 
         # Bind window resize event
         self.root.bind("<Configure>", self.on_resize)

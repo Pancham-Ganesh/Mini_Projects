@@ -60,7 +60,7 @@ function loadTrainingData() {
 // OpenAI API setup
 const openai = new OpenAI({
   apiKey:
-    "8KptpYt38jd76hrogZk5Tl9dzrvlx18Cot7KurMgBfFEeafEWLpp1LfdKHBg2LkXGfmfdHpplhT3BlbkFJbMTwYw10IPUted4RPi_ao0MwG3C50lIbXrDtvHwaux3VcmV6zSPT_cMxOrp1X1PSbSgPg5FVMA", // Replace with a valid API key
+    "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", // Replace with a valid API key
 });
 
 // Function to fetch response from ChatGPT

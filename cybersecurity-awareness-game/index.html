@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cybersecurity Awareness Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Landing Page -->
+  <div id="landing-page">
+    <h1>Welcome to the Cybersecurity Awareness Game</h1>
+    <p>Learn about staying safe online while having fun! Test your knowledge on phishing, strong passwords, and more.</p>
+    <button id="start-game-btn">Start the Game</button>
+  </div>
+
+  <!-- Game Page -->
+  <main id="game-container" hidden>
+    <!-- Question Section -->
+    <section id="question-section">
+      <h2 id="question-text">Question will appear here...</h2>
+      <div id="answers">
+        <button class="answer-btn">Option 1</button>
+        <button class="answer-btn">Option 2</button>
+        <button class="answer-btn">Option 3</button>
+        <button class="answer-btn">Option 4</button>
+      </div>
+    </section>
+
+    <!-- Feedback Section -->
+    <section id="feedback-section">
+      <p id="feedback-text">Feedback will appear here...</p>
+    </section>
+
+    <!-- Score Section -->
+    <section id="score-section" hidden>
+      <h2>Game Over!</h2>
+      <p>Your final score is: <span id="final-score"></span></p>
+      <button id="restart-btn">Play Again</button>
+    </section>
+
+    <!-- Timer -->
+    <div id="timer">
+      <p>Time Left: <span id="time-left">30</span> seconds</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>Learn more about cybersecurity at <a href="https://i4c.mha.gov.in/" target="_blank">Cyber.gov</a></p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
