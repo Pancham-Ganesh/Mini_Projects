@@ -12,6 +12,9 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import openai
+from pygame import mixer, display, time
+import pygame
+import threading
 
 ddd = enchant.Dict("en-US")
 hd = HandDetector(maxHands=1)
@@ -55,10 +58,10 @@ class Application:
     def chat_with_bot(self, use_text_input=True):
         message = ""
         if use_text_input:
-            message = self.text_input.get("1.0", tk.END).strip()  # Changed to get Text widget content
+            message = self.text_input.get("1.0", tk.END).strip()
             if not message:
                 return
-            self.text_input.delete("1.0", tk.END)  # Clear the Text widget
+            self.text_input.delete("1.0", tk.END)
         else:
             message = self.str.strip()
             if not message:
@@ -67,29 +70,194 @@ class Application:
             self.panel5.config(text=self.str)
         
         if message:
+            # Disable send button during processing
+            self.text_send.config(state=tk.DISABLED)
+            self.sign_send.config(state=tk.DISABLED)
+            
+            # Show loading indicator
+            self.chat_display.config(state=tk.NORMAL)
+            self.chat_display.insert(tk.END, "Processing...\n", "loading")
+            self.chat_display.config(state=tk.DISABLED)
+            self.chat_display.see(tk.END)
+            
+            # Start API call in separate thread
+            threading.Thread(target=self._process_chat_message, args=(message,), daemon=True).start()
+
+    def _process_chat_message(self, message):
+        try:
+            # Display user message
+            self.root.after(0, self.display_message, "You: " + message, "user")
+            
+            # Get bot response
             bot_response = self.gpt_generate_response(message, self.conversation_history)
-            self.display_message("You: " + message, "user")
-            self.display_message("Chatbot: " + bot_response, "bot")
+            
+            # Update UI with bot response
+            self.root.after(0, self.display_message, "Chatbot: " + bot_response, "bot")
+            
+        except Exception as e:
+            error_msg = "I'm here for you. If you're feeling low, it's okay to talk about it. You're not alone."
+            self.root.after(0, self.display_message, "Chatbot: " + error_msg, "bot")
+        
+        finally:
+            # Re-enable send buttons
+            self.root.after(0, lambda: self.text_send.config(state=tk.NORMAL))
+            self.root.after(0, lambda: self.sign_send.config(state=tk.NORMAL))
+            
+            # Remove loading indicator
+            self.root.after(0, self._remove_loading_indicator)
+
+    def _remove_loading_indicator(self):
+        self.chat_display.config(state=tk.NORMAL)
+        self.chat_display.delete("end-2l", "end-1c")  # Remove "Processing..." line
+        self.chat_display.config(state=tk.DISABLED)
 
     def display_message(self, message, sender):
         self.chat_display.config(state=tk.NORMAL)
-        
-        # Remove these lines - tags are now configured in __init__
-        # self.chat_display.tag_config("user", foreground="black")
-        # self.chat_display.tag_config("bot", foreground="blue", lmargin1=20, lmargin2=20)
         
         # Insert the message with appropriate tag
         self.chat_display.insert(tk.END, f"{'You: ' if sender == 'user' else 'Chatbot: '}", "bold")
         self.chat_display.insert(tk.END, message[len("You: ") if sender == "user" else len("Chatbot: "):] + "\n\n", sender)
         
         self.chat_display.config(state=tk.DISABLED)
-        self.chat_display.see(tk.END)  # Auto-scroll to bottom
+        self.chat_display.see(tk.END)
+        
+        # Play sign language video for bot responses
+        if sender == "bot":
+            bot_message = message[len("Chatbot: "):]
+            self.play_sign_language_video(bot_message)
 
-    def clear_chat_fun(self):
-        self.chat_display.config(state=tk.NORMAL)
-        self.chat_display.delete(1.0, tk.END)
-        self.chat_display.config(state=tk.DISABLED)
-        self.conversation_history = []  # Clear conversation history
+    def play_sign_language_video(self, text):
+    # Stop any currently playing video
+        if self.video_playing:
+            self.video_playing = False
+            if self.video_capture is not None:
+                self.video_capture.release()
+        
+        # Clean the text
+        words = []
+        for word in text.split():
+            clean_word = ''.join([c for c in word if c.isalpha()]).title()
+            if clean_word:
+                words.append(clean_word)
+        
+        # Find matching video files
+        video_files = []
+        video_dir = "videos"
+        
+        for word in words:
+            # Try variations
+            variations = [word, word.upper(), word.lower(), word.capitalize()]
+            
+            for variant in variations:
+                word_video = os.path.join(video_dir, f"{variant}.mp4")
+                if os.path.exists(word_video):
+                    video_files.append(word_video)
+                    # Add pause video after each word
+                    video_files.append(os.path.join(video_dir, "pause.mp4"))
+                    break
+            else:
+                # Try letter by letter
+                for letter in word:
+                    letter_video = os.path.join(video_dir, f"{letter.upper()}.mp4")
+                    if os.path.exists(letter_video):
+                        video_files.append(letter_video)
+                        # Add short pause after each letter
+                        video_files.append(os.path.join(video_dir, "short_pause.mp4"))
+        
+        if video_files:
+            # Remove the last pause if it exists
+            if video_files[-1].endswith("pause.mp4") or video_files[-1].endswith("short_pause.mp4"):
+                video_files = video_files[:-1]
+                
+            self.current_video_index = 0
+            self.video_files = video_files
+            self.play_next_video()
+        else:
+            self.video_name_label.config(text="No sign language video available")
+
+    def play_next_video(self):
+        if self.video_playing or self.current_video_index >= len(self.video_files):
+            return
+        
+        self.video_file_path = self.video_files[self.current_video_index]
+        video_name = os.path.splitext(os.path.basename(self.video_file_path))[0]
+        
+        # Skip showing name for pause videos
+        if not (video_name == "pause" or video_name == "short_pause"):
+            self.video_name_label.config(text=video_name)
+        else:
+            self.video_name_label.config(text="")
+        
+        try:
+            if self.video_capture is not None:
+                self.video_capture.release()
+            
+            self.video_capture = cv2.VideoCapture(self.video_file_path)
+            if not self.video_capture.isOpened():
+                raise Exception("Could not open video file")
+                
+            # Set slower playback speed (50% of normal speed)
+            self.video_capture.set(cv2.CAP_PROP_FPS, 15)  # Reduce FPS
+            
+            self.video_playing = True
+            self.update_video_frame()
+        except Exception as e:
+            print(f"Error playing video: {e}")
+            self.current_video_index += 1
+            self.root.after(100, self.play_next_video)
+
+    def update_video_frame(self):
+        if not self.video_playing or self.video_capture is None:
+            return
+        
+        try:
+            ret, frame = self.video_capture.read()
+            
+            if ret:
+                frame = cv2.resize(frame, (320, 240))
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(frame)
+                imgtk = ImageTk.PhotoImage(image=img)
+                
+                self.video_panel.imgtk = imgtk
+                self.video_panel.config(image=imgtk)
+                
+                # Schedule next frame update with slower delay (66ms for ~15fps)
+                self.root.after(66, self.update_video_frame)
+            else:
+                # Video ended
+                self.video_capture.release()
+                self.video_playing = False
+                self.current_video_index += 1
+                
+                # Add extra delay between videos
+                if self.current_video_index < len(self.video_files):
+                    # Longer pause after words, shorter after letters
+                    if self.video_files[self.current_video_index].endswith("pause.mp4"):
+                        delay = 1000  # 1 second pause after words
+                    elif self.video_files[self.current_video_index].endswith("short_pause.mp4"):
+                        delay = 500   # 0.5 second pause after letters
+                    else:
+                        delay = 300   # 0.3 second pause between letters of same word
+                    
+                    self.root.after(delay, self.play_next_video)
+        except Exception as e:
+            print(f"Error updating video frame: {e}")
+            self.video_playing = False
+
+    def decrease_video_speed(self):
+        """Slow down the video playback even more"""
+        # This can be called from a "Slower" button if you add one
+        self.video_capture.set(cv2.CAP_PROP_FPS, 10)  # Reduce to 10fps
+        self.root.after_cancel(self.update_video_frame)  # Cancel pending updates
+        self.update_video_frame()  # Restart with new speed
+
+    def increase_video_speed(self):
+        """Speed up the video playback"""
+        # This can be called from a "Faster" button if you add one
+        self.video_capture.set(cv2.CAP_PROP_FPS, 30)  # Increase to 30fps
+        self.root.after_cancel(self.update_video_frame)  # Cancel pending updates
+        self.update_video_frame()  # Restart with new speed
     
     def __init__(self):
         self.vs = cv2.VideoCapture(0)
@@ -100,8 +268,8 @@ class Application:
         voices = self.speak_engine.getProperty("voices")
         self.speak_engine.setProperty("voice", voices[0].id)
 
-        self.client = openai.OpenAI(api_key="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")  # Replace with your actual API key
-        self.conversation_history = []  # To store conversation context
+        self.client = openai.OpenAI(api_key="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")
+        self.conversation_history = []
 
         self.ct = {'blank': 0}
         self.blank_flag = 0
@@ -115,120 +283,156 @@ class Application:
             self.ct[i] = 0
         print("Loaded model from disk")
 
+        # Initialize pygame for video playback
+        pygame.display.init()
+        mixer.init()
+
         self.root = tk.Tk()
         self.root.title("Sign Language To Text")
         self.root.protocol('WM_DELETE_WINDOW', self.destructor)
-        self.root.geometry("800x500")  # Smaller window size
-        self.root.minsize(600, 400)  # Further reduce minimum size
+        self.root.geometry("1200x800")
+        self.root.minsize(1000, 700)
 
-        # Create Canvas with Scrollbar
-        self.canvas = tk.Canvas(self.root)
-        self.scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas)
+        # Create main frames with scrollable left panel
+        self.right_frame = ttk.Frame(self.root)
+        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        self.scrollable_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        self.canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
-
-        # Reduced padding and font sizes
-        small_font = ("Courier", 12, "bold")
-        button_font = ("Courier", 10)
-
-        self.panel = tk.Label(self.scrollable_frame)
-        self.panel.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-
-        self.panel2 = tk.Label(self.scrollable_frame)
-        self.panel2.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
-
-        self.T = tk.Label(self.scrollable_frame, text="Sign Language To Text", font=small_font)
-        self.T.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-
-        self.T1 = tk.Label(self.scrollable_frame, text="Character:", font=small_font)
-        self.T1.grid(row=2, column=0, padx=5, pady=5, sticky="w")
-
-        self.panel3 = tk.Label(self.scrollable_frame, text="", font=small_font)
-        self.panel3.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-
-        self.T3 = tk.Label(self.scrollable_frame, text="Sentence:", font=small_font)
-        self.T3.grid(row=3, column=0, padx=5, pady=5, sticky="w")
-
-        self.panel5 = tk.Label(self.scrollable_frame, text="", font=small_font)
-        self.panel5.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-
-        self.T4 = tk.Label(self.scrollable_frame, text="Suggestions:", fg="red", font=small_font)
-        self.T4.grid(row=4, column=0, columnspan=2, padx=5, pady=5, sticky="w")
-
-        self.b1 = tk.Button(self.scrollable_frame, text="", font=button_font, wraplength=300, command=self.action1)
-        self.b1.grid(row=5, column=0, padx=5, pady=5, sticky="w")
-
-        self.b2 = tk.Button(self.scrollable_frame, text="", font=button_font, wraplength=300, command=self.action2)
-        self.b2.grid(row=5, column=1, padx=5, pady=5, sticky="w")
-
-        self.b3 = tk.Button(self.scrollable_frame, text="", font=button_font, wraplength=300, command=self.action3)
-        self.b3.grid(row=6, column=0, padx=5, pady=5, sticky="w")
-
-        self.b4 = tk.Button(self.scrollable_frame, text="", font=button_font, wraplength=300, command=self.action4)
-        self.b4.grid(row=6, column=1, padx=5, pady=5, sticky="w")
-
-        self.speak = tk.Button(self.scrollable_frame, text="Speak", font=button_font, wraplength=80, command=self.speak_fun)
-        self.speak.grid(row=7, column=0, padx=5, pady=5, sticky="w")
-
-        self.clear = tk.Button(self.scrollable_frame, text="Clear", font=button_font, wraplength=80, command=self.clear_fun)
-        self.clear.grid(row=7, column=1, padx=5, pady=5, sticky="w")
-    
-    # Add chat display area (modified version)
-        self.chat_frame = ttk.Frame(self.scrollable_frame)
-        self.chat_frame.grid(row=8, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
+        # Create scrollable left frame
+        self.left_canvas = tk.Canvas(self.root)
+        self.left_scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.left_canvas.yview)
+        self.left_scrollable_frame = ttk.Frame(self.left_canvas)
         
-        self.chat_display = tk.Text(self.chat_frame, height=10, width=60, wrap=tk.WORD, state=tk.DISABLED)
+        self.left_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.left_canvas.configure(
+                scrollregion=self.left_canvas.bbox("all")
+            )
+        )
+        
+        self.left_canvas.create_window((0, 0), window=self.left_scrollable_frame, anchor="nw")
+        self.left_canvas.configure(yscrollcommand=self.left_scrollbar.set)
+        
+        self.left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.left_scrollbar.pack(side=tk.LEFT, fill=tk.Y)
+
+        # Camera and processed image panels
+        self.camera_frame = ttk.LabelFrame(self.left_scrollable_frame, text="Camera Feed")
+        self.camera_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.panel = tk.Label(self.camera_frame)
+        self.panel.pack(fill=tk.BOTH, expand=True)
+
+        self.processed_frame = ttk.LabelFrame(self.left_scrollable_frame, text="Processed Image")
+        self.processed_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.panel2 = tk.Label(self.processed_frame)
+        self.panel2.pack(fill=tk.BOTH, expand=True)
+
+        # Text output area
+        self.text_frame = ttk.LabelFrame(self.left_scrollable_frame, text="Text Output")
+        self.text_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.T1 = tk.Label(self.text_frame, text="Character:", font=("Courier", 12))
+        self.T1.pack(anchor=tk.W)
+
+        self.panel3 = tk.Label(self.text_frame, text="", font=("Courier", 30))
+        self.panel3.pack(anchor=tk.W)
+
+        self.T3 = tk.Label(self.text_frame, text="Sentence:", font=("Courier", 12))
+        self.T3.pack(anchor=tk.W)
+
+        self.panel5 = tk.Label(self.text_frame, text="", font=("Courier", 14), wraplength=400)
+        self.panel5.pack(anchor=tk.W, fill=tk.X)
+
+        # Suggestions
+        self.suggestions_frame = ttk.LabelFrame(self.left_scrollable_frame, text="Suggestions")
+        self.suggestions_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.T4 = tk.Label(self.suggestions_frame, text="Suggestions:", fg="red", font=("Courier", 12))
+        self.T4.pack(anchor=tk.W)
+
+        self.b1 = tk.Button(self.suggestions_frame, text="", font=("Courier", 12), wraplength=400, command=self.action1)
+        self.b1.pack(fill=tk.X)
+
+        self.b2 = tk.Button(self.suggestions_frame, text="", font=("Courier", 12), wraplength=400, command=self.action2)
+        self.b2.pack(fill=tk.X)
+
+        self.b3 = tk.Button(self.suggestions_frame, text="", font=("Courier", 12), wraplength=400, command=self.action3)
+        self.b3.pack(fill=tk.X)
+
+        self.b4 = tk.Button(self.suggestions_frame, text="", font=("Courier", 12), wraplength=400, command=self.action4)
+        self.b4.pack(fill=tk.X)
+
+        # Control buttons
+        self.control_frame = ttk.Frame(self.left_scrollable_frame)
+        self.control_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.speak = tk.Button(self.control_frame, text="Speak", font=("Courier", 12), command=self.speak_fun)
+        self.speak.pack(side=tk.LEFT, padx=5)
+
+        self.clear = tk.Button(self.control_frame, text="Clear", font=("Courier", 12), command=self.clear_fun)
+        self.clear.pack(side=tk.LEFT, padx=5)
+
+        self.sign_send = tk.Button(self.control_frame, text="Send Sign", font=("Courier", 12), 
+                                command=lambda: self.chat_with_bot(use_text_input=False))
+        self.sign_send.pack(side=tk.LEFT, padx=5)
+
+        # Chat area
+        self.chat_frame = ttk.LabelFrame(self.right_frame, text="Chat")
+        self.chat_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.chat_display = tk.Text(self.chat_frame, height=20, width=60, wrap=tk.WORD, state=tk.DISABLED)
         self.chat_display.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        
+
         scrollbar = ttk.Scrollbar(self.chat_frame, command=self.chat_display.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.chat_display.config(yscrollcommand=scrollbar.set)
 
-         # Configure tags AFTER creating chat_display
+        # Configure tags for chat display
         self.chat_display.tag_config("bold", font=("Courier", 10, "bold"))
         self.chat_display.tag_config("user", foreground="black")
         self.chat_display.tag_config("bot", foreground="blue", lmargin1=20, lmargin2=20)
-        
-        # Add text input frame
-        self.input_frame = ttk.Frame(self.scrollable_frame)
-        self.input_frame.grid(row=9, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
-        
-        # Text input field
-        self.text_input = tk.Text(
-            self.input_frame, 
-            height=3,  # 3 lines tall
-            width=60,
-            font=("Courier", 12),
-            wrap=tk.WORD,
-            relief=tk.GROOVE,
-            borderwidth=2
-        )
-        self.text_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        self.text_input.bind("<Return>", lambda event: self.chat_with_bot())  # Send on Enter
-        
-        # Send button for text input
-        self.text_send = tk.Button(self.input_frame, text="Send", font=button_font, 
-                            command=self.chat_with_bot)
-        self.text_send.pack(side=tk.LEFT)
-        
-        # Modified Send to Chatbot button (now for sign language)
-        self.sign_send = tk.Button(self.scrollable_frame, text="Send Sign", font=button_font, 
-                            command=lambda: self.chat_with_bot(use_text_input=False))
-        self.sign_send.grid(row=10, column=0, padx=5, pady=5, sticky="w")
-        
-        # Clear chat button
-        self.clear_chat = tk.Button(self.scrollable_frame, text="Clear Chat", font=button_font, 
-                            command=self.clear_chat_fun)
-        self.clear_chat.grid(row=10, column=1, padx=5, pady=5, sticky="w")
+        self.chat_display.tag_config("loading", foreground="gray", font=("Courier", 10, "italic"))
 
-        # Bind window resize event
-        self.root.bind("<Configure>", self.on_resize)
+        # Text input area
+        self.input_frame = ttk.Frame(self.right_frame)
+        self.input_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.text_input = tk.Text(self.input_frame, height=3, width=60, font=("Courier", 12), 
+                                wrap=tk.WORD, relief=tk.GROOVE, borderwidth=2)
+        self.text_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.text_input.bind("<Return>", lambda event: self.chat_with_bot())
+
+        self.text_send = tk.Button(self.input_frame, text="Send", font=("Courier", 12), 
+                                command=self.chat_with_bot)
+        self.text_send.pack(side=tk.LEFT)
+
+        # Video display area
+        self.video_display_frame = ttk.LabelFrame(self.right_frame, text="Sign Language Video")
+        self.video_display_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.video_name_label = tk.Label(self.video_display_frame, text="", font=("Courier", 10))
+        self.video_name_label.pack()
+
+        self.video_panel = tk.Label(self.video_display_frame)
+        self.video_panel.pack(fill=tk.BOTH, expand=True)
+
+        # Clear chat button
+        self.clear_chat = tk.Button(self.right_frame, text="Clear Chat", font=("Courier", 12), 
+                                command=self.clear_chat_fun)
+        self.clear_chat.pack(pady=5)
+
+        # Loading indicator
+        self.loading_label = tk.Label(self.right_frame, text="", fg="blue")
+        self.loading_label.pack()
+
+        # Video playback variables
+        self.video_playing = False
+        self.current_video_frame = None
+        self.video_capture = None
+        self.video_file_path = ""
+        self.current_video_index = 0
+        self.video_files = []
 
         self.str = " "
         self.ccc = 0
@@ -241,20 +445,58 @@ class Application:
         self.word3 = " "
         self.word4 = " "
 
+        # Enable mousewheel scrolling
+        self.left_canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        
         self.video_loop()
 
-    def update_font_size(self):
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        font_size = max(8, min(width // 80, height // 50))  # Smaller font size
+    def _on_mousewheel(self, event):
+        self.left_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
-        self.T.config(font=("Courier", font_size, "bold"))
-        self.T1.config(font=("Courier", font_size, "bold"))
-        self.T3.config(font=("Courier", font_size, "bold"))
-        self.T4.config(font=("Courier", font_size, "bold"))
+    def clear_chat_fun(self):
+        self.chat_display.config(state=tk.NORMAL)
+        self.chat_display.delete(1.0, tk.END)
+        self.chat_display.config(state=tk.DISABLED)
+        self.conversation_history = []
 
-    def on_resize(self, event):
-        self.update_font_size()
+    def action1(self):
+        idx_space = self.str.rfind(" ")
+        idx_word = self.str.find(self.word, idx_space)
+        last_idx = len(self.str)
+        self.str = self.str[:idx_word]
+        self.str = self.str + self.word1.upper()
+
+    def action2(self):
+        idx_space = self.str.rfind(" ")
+        idx_word = self.str.find(self.word, idx_space)
+        last_idx = len(self.str)
+        self.str = self.str[:idx_word]
+        self.str = self.str + self.word2.upper()
+
+    def action3(self):
+        idx_space = self.str.rfind(" ")
+        idx_word = self.str.find(self.word, idx_space)
+        last_idx = len(self.str)
+        self.str = self.str[:idx_word]
+        self.str = self.str + self.word3.upper()
+
+    def action4(self):
+        idx_space = self.str.rfind(" ")
+        idx_word = self.str.find(self.word, idx_space)
+        last_idx = len(self.str)
+        self.str = self.str[:idx_word]
+        self.str = self.str + self.word4.upper()
+
+    def speak_fun(self):
+        self.speak_engine.say(self.str)
+        self.speak_engine.runAndWait()
+
+    def clear_fun(self):
+        self.str = " "
+        self.word1 = " "
+        self.word2 = " "
+        self.word3 = " "
+        self.word4 = " "
 
     def video_loop(self):
         try:
